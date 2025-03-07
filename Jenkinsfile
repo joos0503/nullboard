@@ -53,7 +53,7 @@ pipeline {
         stage('Deploy to Kubernetes via Kustomize') {
             steps {
                 echo "Deploying to Kubernetes namespace: ${K8S_NAMESPACE}"
-                deployToKubernetesViaKustomize("${DOCKER_REGISTRY}", "${APP_IMAGE}", "${params.IMAGE_TAG}", "${K8S_NAMESPACE}")
+                deployToKubernetesViaKustomize("192.168.86.32:5000", "nullboard", "latest", "default")
             }
         }
     }
