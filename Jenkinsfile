@@ -53,7 +53,7 @@ pipeline {
         stage('Deploy to Kubernetes via Kustomize') {
             steps {
                 echo "Deploying to Kubernetes namespace: ${K8S_NAMESPACE}"
-                deployToKubernetesViaKustomize("192.168.86.32:5000", "nullboard", "latest", "default")
+                deployToKubernetesViaKustomize("${DOCKER_REGISTRY}", "${APP_IMAGE}", "${params.IMAGE_TAG}", "${K8S_NAMESPACE}")
             }
         }
     }
@@ -111,14 +111,13 @@ def deployToKubernetesViaKustomize(containerRegistry, appImage, imageTag, namesp
     script {
         sh """
         cd kustomize/overlays/dev
-        sed -i 's|PIPELINE_IMAGE_PLACEHOLDER|$(appImage):$(imageTag)|' kustomization.yaml
+        sed -i 's|PIPELINE_IMAGE_PLACEHOLDER|${appImage}:${imageTag}|' kustomization.yaml
         echo "Updated kustomization.yaml:"
         cat kustomization.yaml
         echo "Updated patch-deployment.yaml:"
-        cat patch-deployment.yaml  # Debugging step
+        cat patch-deployment.yaml
         # Apply YAML
         microk8s kubectl kustomize
         """
     }
 }
-
