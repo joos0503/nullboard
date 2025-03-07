@@ -1,0 +1,9 @@
+resources:
+  - ../../base
+
+patches:
+  - path: patch-deployment.yaml
+
+images:
+  - name: image-name-to-override
+    newName: PIPELINE_IMAGE_PLACEHOLDER

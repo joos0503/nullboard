@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nullboard
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nullboard
+  template:
+    metadata:
+      labels:
+        app: nullboard
+    spec:
+      containers:
+        - name: nullboard
+          image: image-name-to-override  # Placeholder for Kustomize to replace
+          ports:
+            - containerPort: 80

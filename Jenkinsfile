@@ -7,12 +7,14 @@ pipeline {
         string(name: 'DOCKER_REGISTRY', defaultValue: '192.168.86.32:5000', description: 'Docker registry')
         string(name: 'DOCKER_REGISTRY_URL', defaultValue: 'http://192.168.86.32:5000', description: 'Docker registry url')
         string(name: 'DOCKER_CREDENTIALS', defaultValue: 'local-registry-credentials', description: 'Docker registry credentials')
+        string(name: 'DOCKER_EMAIL', defaultValue: 'some.email@example.com', description: 'Docker user email')
     }
     environment {
         APP_NAME = 'nullboard'
         APP_IMAGE = "${params.DOCKER_REGISTRY}/nullboard"
         DOCKER_REGISTRY_URL = "${params.DOCKER_REGISTRY_URL}"
         DOCKER_CREDENTIALS = "${params.DOCKER_CREDENTIALS}"
+        DOCKER_EMAIL = "${params.DOCKER_EMAIL}"
         K8S_NAMESPACE = 'default'
         KUBECONFIG_CREDENTIALS = 'k8s-token-file'
     }
@@ -48,12 +50,12 @@ pipeline {
             }
         }
 
-        // stage('Deploy to Kubernetes via Helm') {
-        //     steps {
-        //         echo "Deploying to Kubernetes namespace: ${K8S_NAMESPACE}"
-        //         deployToKubernetesViaHelm("${APP_NAME}", "${APP_IMAGE}", "${params.IMAGE_TAG}", "${K8S_NAMESPACE}")
-        //     }
-        // }
+        stage('Deploy to Kubernetes via Kustomize') {
+            steps {
+                echo "Deploying to Kubernetes namespace: ${K8S_NAMESPACE}"
+                deployToKubernetesViaKustomize("${DOCKER_REGISTRY}", "${APP_IMAGE}", "${params.IMAGE_TAG}", "${K8S_NAMESPACE}")
+            }
+        }
     }
 
     post {
@@ -99,23 +101,24 @@ def createDockerRegistrySecret() {
             --docker-server=${DOCKER_REGISTRY_URL} \
             --docker-username=${DOCKER_USER} \
             --docker-password=${DOCKER_PASS} \
-            --docker-email=johanosterberg@hotmail.com --dry-run=client -o yaml | microk8s kubectl apply -f -
+            --docker-email=${DOCKER_EMAIL} --dry-run=client -o yaml | microk8s kubectl apply -f -
             """
         }
     }
 }
 
-def deployToKubernetesViaHelm(appName, appImage, imageTag, namespace) {
+def deployToKubernetesViaKustomize(containerRegistry, appImage, imageTag, namespace) {
     script {
-            withCredentials([file(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG')]) {
-                sh """
-                microk8s kubectl create namespace ${namespace} || true
-            microk8s helm3 upgrade --install ${appName} ./helm \
-            --namespace ${namespace} \
-            --set image.repository=${appImage} \
-            --set image.tag=${imageTag} \
-            --values helm/values.yaml
-            """
-            }
+        sh """
+        cd kustomize/overlays/dev
+        sed -i 's|PIPELINE_IMAGE_PLACEHOLDER|$(appImage):$(imageTag)|' kustomization.yaml
+        echo "Updated kustomization.yaml:"
+        cat kustomization.yaml
+        echo "Updated patch-deployment.yaml:"
+        cat patch-deployment.yaml  # Debugging step
+        # Apply YAML
+        microk8s kubectl kustomize
+        """
     }
 }
+
